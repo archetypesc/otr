@@ -1,7 +1,7 @@
 /*!
 
-  otr.js v0.2.16 - 2015-12-03
-  (c) 2015 - Arlo Breault <arlolra@gmail.com>
+  otr.js v0.2.16 - 2018-11-09
+  (c) 2018 - Arlo Breault <arlolra@gmail.com>
   Freely distributed under the MPL-2.0 license.
 
   This file is concatenated for the browser.
@@ -57,9 +57,9 @@
     , AUTHSTATE_AWAITING_SIG       : 3
 
     // whitespace tags
-    , WHITESPACE_TAG    : '\x20\x09\x20\x20\x09\x09\x09\x09\x20\x09\x20\x09\x20\x09\x20\x20'
-    , WHITESPACE_TAG_V2 : '\x20\x20\x09\x09\x20\x20\x09\x20'
-    , WHITESPACE_TAG_V3 : '\x20\x20\x09\x09\x20\x20\x09\x09'
+    , WHITESPACE_TAG    : [0x20, 0x09, 0x20, 0x20, 0x09, 0x09, 0x09, 0x09, 0x20, 0x09, 0x20, 0x09, 0x20, 0x09, 0x20, 0x20]
+    , WHITESPACE_TAG_V2 : [0x20, 0x20, 0x09, 0x09, 0x20, 0x20, 0x09, 0x20]
+    , WHITESPACE_TAG_V3 : [0x20, 0x20, 0x09, 0x09, 0x20, 0x20, 0x09, 0x09]
 
     // otr tags
     , OTR_TAG       : '?OTR'
@@ -214,6 +214,45 @@
       , CryptoJS.enc.Latin1.parse(c)
       , opts
     )
+  }
+
+  HLP.u8ToString = function(u8Array) {
+    return u8Array.map(function (c) {
+      return String.fromCharCode(c)
+    }.join(""));
+  }
+
+  HLP.wordArrayToU8 = function(wordArray) {
+    var len = wordArray.words.length,
+      u8_array = new Uint8Array(len << 2),
+      offset = 0, word, i
+    ;
+    for (i=0; i<len; i++) {
+      word = wordArray.words[i];
+      u8_array[offset++] = word >> 24;
+      u8_array[offset++] = (word >> 16) & 0xff;
+      u8_array[offset++] = (word >> 8) & 0xff;
+      u8_array[offset++] = word & 0xff;
+    }
+    return u8_array;
+  }
+
+  HLP.u8ToWordArray = function (u8Array) {
+    var words = [], i = 0, len = u8Array.length;
+
+    while (i < len) {
+      words.push(
+        (u8Array[i++] << 24) |
+        (u8Array[i++] << 16) |
+        (u8Array[i++] << 8)  |
+        (u8Array[i++])
+      );
+    }
+  
+    return {
+      sigBytes: words.length * 4,
+      words:    words
+    };
   }
 
   HLP.multPowMod = function (a, b, c, d, e) {
@@ -863,8 +902,8 @@
 
   // whitespace tags
   var tags = {}
-  tags[CONST.WHITESPACE_TAG_V2] = CONST.OTR_VERSION_2
-  tags[CONST.WHITESPACE_TAG_V3] = CONST.OTR_VERSION_3
+  tags[HLP.u8ToString(CONST.WHITESPACE_TAG_V2)] = CONST.OTR_VERSION_2
+  tags[HLP.u8ToString(CONST.WHITESPACE_TAG_V3)] = CONST.OTR_VERSION_3
 
   Parse.parseMsg = function (otr, msg) {
 
@@ -878,7 +917,7 @@
       this.initFragment(otr)
 
       // whitespace tags
-      ind = msg.indexOf(CONST.WHITESPACE_TAG)
+      ind = msg.indexOf(HLP.u8ToString(CONST.WHITESPACE_TAG))
 
       if (~ind) {
 
@@ -2261,8 +2300,15 @@
     if (Math.ceil(msg.length / 8) >= MAX_UINT)  // * 16 / 128
       return this.notify('Message is too long.')
 
+    var wa;
+    if (typeof msg === "string") {
+      wa = CryptoJS.enc.Latin1.parse(msg)
+    } else {
+      wa = HLP.u8ToWordArray(msg);
+    }
+
     var aes = HLP.encryptAes(
-        CryptoJS.enc.Latin1.parse(msg)
+        wa
       , sessKeys.sendenc
       , ctr
     )
@@ -2347,20 +2393,20 @@
       , sessKeys.rcvenc
       , HLP.padCtr(msg[4])
     )
-    out = out.toString(CryptoJS.enc.Latin1)
+
+    out = HLP.wordArrayToU8(out);
 
     if (!our_keyid) this.rotateOurKeys()
     if (!their_keyid) this.rotateTheirKeys(HLP.readMPI(msg[3]))
 
     // parse TLVs
-    var ind = out.indexOf('\x00')
+    var ind = out.indexOf(0x00)
     if (~ind) {
-      this.handleTLVs(out.substring(ind + 1), sessKeys)
-      out = out.substring(0, ind)
+      this.handleTLVs(HLP.u8ToString(out.slice(ind + 1)), sessKeys)
+      out = out.slice(0, ind)
     }
 
-    out = CryptoJS.enc.Latin1.parse(out)
-    return out.toString(CryptoJS.enc.Utf8)
+    return out;
   }
 
   OTR.prototype.handleTLVs = function (tlvs, sessKeys) {
@@ -2446,11 +2492,12 @@
   }
 
   OTR.prototype.sendMsg = function (msg, meta) {
-    if ( this.REQUIRE_ENCRYPTION ||
-         this.msgstate !== CONST.MSGSTATE_PLAINTEXT
-    ) {
-      msg = CryptoJS.enc.Utf8.parse(msg)
-      msg = msg.toString(CryptoJS.enc.Latin1)
+    if (msg.constructor.name === "Uint8Array") {
+      msg = Array.from(msg);
+    }
+
+    if (msg.constructor.name !== "Array") {
+      throw new Error("msg must be byte Array or Uint8Array");
     }
 
     switch (this.msgstate) {
@@ -2461,9 +2508,9 @@
           return
         }
         if (this.SEND_WHITESPACE_TAG && !this.receivedPlaintext) {
-          msg += CONST.WHITESPACE_TAG  // 16 byte tag
-          if (this.ALLOW_V3) msg += CONST.WHITESPACE_TAG_V3
-          if (this.ALLOW_V2) msg += CONST.WHITESPACE_TAG_V2
+          msg = msg.concat(CONST.WHITESPACE_TAG)  // 16 byte tag
+          if (this.ALLOW_V3) msg = msg.concat(CONST.WHITESPACE_TAG_V3)
+          if (this.ALLOW_V2) msg = msg.concat(CONST.WHITESPACE_TAG_V2)
         }
         break
       case CONST.MSGSTATE_FINISHED:
