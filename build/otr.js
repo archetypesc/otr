@@ -1,7 +1,7 @@
 /*!
 
-  otr.js v0.2.16 - 2015-12-03
-  (c) 2015 - Arlo Breault <arlolra@gmail.com>
+  otr.js v0.2.16 - 2018-11-11
+  (c) 2018 - Arlo Breault <arlolra@gmail.com>
   Freely distributed under the MPL-2.0 license.
 
   This file is concatenated for the browser.
