@@ -460,7 +460,8 @@
     module.exports = DSA
     CryptoJS = require('../vendor/crypto.js')
     BigInt = require('../vendor/bigint.js')
-    if (__dirname) {
+    var glob = window || global;
+    if (glob["__dirname"]) {
 	WWPath = require('path').join(__dirname, '/dsa-webworker.js')
     } else {
 	WWPath = "/dsa-webworker.js"
