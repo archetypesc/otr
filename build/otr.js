@@ -1914,8 +1914,13 @@
     CryptoJS = require('../vendor/crypto.js')
     BigInt = require('../vendor/bigint.js')
     EventEmitter = require('../vendor/eventemitter.js')
-    var dname = "" || __dirname;
-    SMWPath = require('path').join(dname, '/sm-webworker.js')
+    var glob = global || window;
+    var dname = glob["__dirname"];
+    if (dname) {
+       SMWPath = require('path').join(dname, '/sm-webworker.js');
+    } else {
+       SMWPath = 'sm-webworker.js';
+    }
     CONST = require('./const.js')
     HLP = require('./helpers.js')
     Parse = require('./parse.js')
