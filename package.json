@@ -28,8 +28,7 @@
     "grunt-contrib-concat": "^1.0.1",
     "grunt-contrib-jshint": "^2.0.0",
     "grunt-contrib-uglify": "^4.0.0",
-    "mocha": "^5.2.0",
-    "webworker-threads": "^0.7.17"
+    "mocha": "^5.2.0"
   },
   "author": "Arlo Breault <arlolra@gmail.com>",
   "contributors": [

@@ -1,7 +1,7 @@
 /*!
 
-  otr.js v0.2.16 - 2018-12-18
-  (c) 2018 - Arlo Breault <arlolra@gmail.com>
+  otr.js v0.2.16 - 2021-03-02
+  (c) 2021 - Arlo Breault <arlolra@gmail.com>
   Freely distributed under the MPL-2.0 license.
 
   This file is concatenated for the browser.
@@ -833,8 +833,8 @@
       })
 
     // load optional dep. in node
-    if (typeof module !== 'undefined' && module.exports)
-      Worker = require('webworker-threads').Worker
+    // if (typeof module !== 'undefined' && module.exports)
+    //   Worker = require('webworker-threads').Worker
 
     var worker = new Worker(opts.path)
     worker.onmessage = function (e) {
@@ -2077,8 +2077,8 @@
       })
 
     // load optional dep. in node
-    if (typeof module !== 'undefined' && module.exports)
-      Worker = require('webworker-threads').Worker
+    // if (typeof module !== 'undefined' && module.exports)
+    //   Worker = require('webworker-threads').Worker
 
     this.worker = new Worker(opts.path)
     var self = this
